@@ -1,0 +1,80 @@
+{
+    "capacity": 8192,
+    "transform": {
+        "position": [
+            0.00000000,
+            0.00000000,
+            0.00000000
+        ],
+        "rotation": [
+            0.00000000,
+            0.00000000,
+            0.00000000,
+            1.00000000
+        ]
+    },
+    "emitter": {
+        "shape": "POINT",
+        "radius": 1.00000000,
+        "emit_from_surface": false,
+        "particles_per_second": 10,
+        "max_particles": 100,
+        "direction_spread": 0.20000000,
+        "speed": [
+            6.00000000,
+            8.00000000
+        ],
+        "velocity_mode": "DIRECTIONAL",
+        "lifetime": [
+            1.00000000,
+            2.00000000
+        ],
+        "rotation": [
+            0.00000000,
+            0.00000000
+        ],
+        "gravity": [
+            0.00000000,
+            -6.00000000,
+            0.00000000
+        ],
+        "damping": 0.00000000,
+        "local_space": false,
+        "color_start": [
+            1.00000000,
+            1.00000000,
+            1.00000000,
+            1.00000000
+        ],
+        "color_end": [
+            1.00000000,
+            1.00000000,
+            1.00000000,
+            0.00000000
+        ],
+        "scale_start": 0.10000000,
+        "scale_end": 0.10000000,
+        "trail": {
+            "enabled": true,
+            "length": 16,
+            "min_point_distance": 0.20000000,
+            "width_start": 0.10000000,
+            "width_end": 0.00000000,
+            "color_start": [
+                0.00000000,
+                1.00000000,
+                0.41726613,
+                1.00000000
+            ],
+            "color_end": [
+                0.00000000,
+                0.00000000,
+                0.00000000,
+                0.00000000
+            ]
+        }
+    },
+    "renderable": {
+        "texture_path": ""
+    }
+}

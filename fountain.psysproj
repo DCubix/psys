@@ -1,0 +1,90 @@
+{
+    "systems": [
+        {
+            "name": "System#0",
+            "psys_file": {
+                "capacity": 8192,
+                "transform": {
+                    "position": [
+                        0.00000000,
+                        0.00000000,
+                        0.00000000
+                    ],
+                    "rotation": [
+                        0.00000000,
+                        0.00000000,
+                        0.00000000,
+                        0.00000000
+                    ]
+                },
+                "emitter": {
+                    "shape": "POINT",
+                    "radius": 1.00000000,
+                    "emit_from_surface": false,
+                    "particles_per_second": 25,
+                    "max_particles": 100,
+                    "direction_spread": 0.10000000,
+                    "speed": [
+                        12.00000000,
+                        16.00000000
+                    ],
+                    "velocity_mode": "DIRECTIONAL",
+                    "lifetime": [
+                        2.00000000,
+                        3.00000000
+                    ],
+                    "rotation": [
+                        0.00000000,
+                        0.00000000
+                    ],
+                    "gravity": [
+                        0.00000000,
+                        -9.80000019,
+                        0.00000000
+                    ],
+                    "damping": 0.23999999,
+                    "local_space": false,
+                    "color_start": [
+                        0.81407034,
+                        0.81407034,
+                        1.00000000,
+                        1.00000000
+                    ],
+                    "color_end": [
+                        1.00000000,
+                        1.00000000,
+                        1.00000000,
+                        0.00000000
+                    ],
+                    "scale_start": 0.40000001,
+                    "scale_end": 0.40000001,
+                    "trail": {
+                        "enabled": true,
+                        "length": 16,
+                        "min_point_distance": 0.10000000,
+                        "width_start": 2.00000000,
+                        "width_end": 2.00000000,
+                        "color_start": [
+                            0.46733665,
+                            0.50565767,
+                            1.00000000,
+                            1.00000000
+                        ],
+                        "color_end": [
+                            1.00000000,
+                            1.00000000,
+                            1.00000000,
+                            0.00000000
+                        ],
+                        "texture_cap_fraction": 0.14999999,
+                        "texture_tiles": 2.00000000
+                    }
+                },
+                "renderable": {
+                    "texture_path": "/media/diego/Data/Projects/psys/src/assets/circle_05.png",
+                    "trail_texture_path": "/media/diego/Data/Projects/psys/src/assets/spark_07.png"
+                }
+            }
+        }
+    ]
+}

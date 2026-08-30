@@ -1,0 +1,172 @@
+{
+    "systems": [
+        {
+            "name": "System#0",
+            "psys_file": {
+                "capacity": 8192,
+                "transform": {
+                    "position": [
+                        0.00000000,
+                        0.00000000,
+                        0.00000000
+                    ],
+                    "rotation": [
+                        0.00000000,
+                        0.00000000,
+                        0.00000000,
+                        0.00000000
+                    ]
+                },
+                "emitter": {
+                    "shape": "SPHERE",
+                    "radius": 3.99999881,
+                    "emit_from_surface": true,
+                    "particles_per_second": 200,
+                    "max_particles": 300,
+                    "direction_spread": 0.00000000,
+                    "speed": [
+                        8.00000000,
+                        12.00000000
+                    ],
+                    "velocity_mode": "RADIAL_IN",
+                    "lifetime": [
+                        0.29999998,
+                        0.40000001
+                    ],
+                    "rotation": [
+                        0.00000000,
+                        0.00000000
+                    ],
+                    "gravity": [
+                        0.00000000,
+                        0.00000000,
+                        0.00000000
+                    ],
+                    "damping": 0.00000000,
+                    "local_space": false,
+                    "color_start": [
+                        1.00000000,
+                        1.00000000,
+                        1.00000000,
+                        1.00000000
+                    ],
+                    "color_end": [
+                        1.00000000,
+                        1.00000000,
+                        1.00000000,
+                        0.00000000
+                    ],
+                    "scale_start": 0.15000001,
+                    "scale_end": 0.15000001,
+                    "trail": {
+                        "enabled": true,
+                        "length": 16,
+                        "min_point_distance": 0.25000000,
+                        "width_start": 0.10000000,
+                        "width_end": 0.00000000,
+                        "color_start": [
+                            1.00000000,
+                            0.84349805,
+                            0.41206032,
+                            1.00000000
+                        ],
+                        "color_end": [
+                            1.00000000,
+                            0.98039216,
+                            0.78431374,
+                            0.00000000
+                        ]
+                    }
+                },
+                "renderable": {
+                    "texture_path": "/media/diego/Data/Projects/psys/src/assets/star_05.png",
+                    "trail_texture_path": "/media/diego/Data/Projects/psys/src/assets/window_01.png"
+                }
+            }
+        },
+        {
+            "name": "System#1",
+            "psys_file": {
+                "capacity": 8192,
+                "transform": {
+                    "position": [
+                        0.00000000,
+                        0.00000000,
+                        0.00000000
+                    ],
+                    "rotation": [
+                        0.00000000,
+                        0.00000000,
+                        0.00000000,
+                        0.00000000
+                    ]
+                },
+                "emitter": {
+                    "shape": "POINT",
+                    "radius": 0.44000009,
+                    "emit_from_surface": false,
+                    "particles_per_second": 16,
+                    "max_particles": 100,
+                    "direction_spread": 0.65000010,
+                    "speed": [
+                        0.00000000,
+                        0.00000000
+                    ],
+                    "velocity_mode": "DIRECTIONAL",
+                    "lifetime": [
+                        0.10000000,
+                        1.00000000
+                    ],
+                    "rotation": [
+                        0.00000000,
+                        4.00000000
+                    ],
+                    "gravity": [
+                        0.00000000,
+                        0.00000000,
+                        0.00000000
+                    ],
+                    "damping": 0.00000000,
+                    "local_space": false,
+                    "color_start": [
+                        1.00000000,
+                        1.00000000,
+                        1.00000000,
+                        1.00000000
+                    ],
+                    "color_end": [
+                        1.00000000,
+                        1.00000000,
+                        1.00000000,
+                        0.00000000
+                    ],
+                    "scale_start": 1.00000000,
+                    "scale_end": 1.50000000,
+                    "trail": {
+                        "enabled": false,
+                        "length": 0,
+                        "min_point_distance": 0.00000000,
+                        "width_start": 0.00000000,
+                        "width_end": 0.00000000,
+                        "color_start": [
+                            0.00000000,
+                            0.00000000,
+                            0.00000000,
+                            0.00000000
+                        ],
+                        "color_end": [
+                            0.00000000,
+                            0.00000000,
+                            0.00000000,
+                            0.00000000
+                        ]
+                    }
+                },
+                "renderable": {
+                    "texture_path": "/media/diego/Data/Projects/psys/src/assets/star_09.png",
+                    "trail_texture_path": ""
+                }
+            }
+        }
+    ]
+}

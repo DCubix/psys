@@ -1,0 +1,28 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Odin",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/psys",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "odin: build",
+            "initCommands": [
+                "command script import ${workspaceFolder}/debug/odin.py"
+            ]
+        },
+        {
+            "name": "Release Odin",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/psys-release",
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "preLaunchTask": "odin: release",
+            "stopAtEntry": false,
+            "externalConsole": false
+        }
+    ]
+}

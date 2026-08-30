@@ -1,0 +1,109 @@
+#version 460 core
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+uniform mat4 uInvView;
+uniform int uParticleCount;
+uniform int uTrailLength;
+
+uniform float uWidthStart;
+uniform float uWidthEnd;
+uniform vec4 uColorStart;
+uniform vec4 uColorEnd;
+
+const uint RESTART_INDEX = 0xFFFFFFFFu;
+
+struct TrailVertex {
+    vec3 position;
+    vec4 color;
+    vec2 uv;
+};
+
+struct TrailPoint {
+    vec4 position; // xyz = pos, w = width
+    vec4 color;
+};
+
+struct TrailMeta {
+    int head;
+    int count;
+    float alpha;
+    float pad;
+};
+
+layout (std430, binding = 0) writeonly buffer TrailVBuff {
+    TrailVertex vertices[];
+};
+
+layout (std430, binding = 1) writeonly buffer TrailIBuff {
+    uint indices[];
+};
+
+layout (std430, binding = 2) readonly buffer TrailPoints {
+    TrailPoint points[];
+};
+
+layout (std430, binding = 3) readonly buffer TrailMetas {
+    TrailMeta metas[];
+};
+
+vec3 pointAt(uint pid, int head, int k) {
+    int idx = (head - k + uTrailLength) % uTrailLength;
+    return points[pid * uint(uTrailLength) + uint(idx)].position.xyz;
+}
+
+void main() {
+    uint pid = gl_GlobalInvocationID.x;
+    if (pid >= uParticleCount) return;
+
+    uint vertsPerParticle   = uint(uTrailLength) * 2u;
+    uint indicesPerParticle = vertsPerParticle + 1u;
+
+    uint vidBase = pid * vertsPerParticle;
+    uint iidBase = pid * indicesPerParticle;
+
+    TrailMeta meta = metas[pid];
+    vec3 camPos = uInvView[3].xyz;
+    int count = min(meta.count, uTrailLength);
+
+    if (count < 2) {
+        for (int i = 0; i < uTrailLength; i++) {
+            uint vid = vidBase + uint(i) * 2u;
+            vertices[vid + 0] = TrailVertex(vec3(0.0), vec4(0.0), vec2(0.0));
+            vertices[vid + 1] = TrailVertex(vec3(0.0), vec4(0.0), vec2(0.0));
+            uint iid = iidBase + uint(i) * 2u;
+            indices[iid + 0] = vid + 0;
+            indices[iid + 1] = vid + 1;
+        }
+        indices[iidBase + vertsPerParticle] = RESTART_INDEX;
+        return;
+    }
+
+    for (int i = 0; i < uTrailLength; i++) {
+        int k = clamp(i, 0, count - 1); // step back from head
+        int kn = max(k - 1, 0); // newer neighbor
+        int ko = min(k + 1, count - 1); // older neighbor
+
+        vec3 pos = pointAt(pid, meta.head, k);
+        vec3 segDir = pointAt(pid, meta.head, kn) - pointAt(pid, meta.head, ko);
+        segDir = dot(segDir, segDir) < 1e-5 ? vec3(0,0,1) : normalize(segDir);
+
+        float t = float(k) / float(count - 1);
+        float w = mix(uWidthStart, uWidthEnd, t);
+        vec4 color = mix(uColorStart, uColorEnd, t) * meta.alpha;
+        
+        vec3 viewDir = normalize(camPos - pos);
+        vec3 sideRaw = cross(segDir, viewDir);
+        float sl = length(sideRaw);
+        vec3 side = sl < 1e-5 ? vec3(0.0) : (sideRaw / sl) * w * 0.5;
+
+        uint vid = vidBase + uint(i) * 2u;
+        vertices[vid + 0] = TrailVertex(pos + side, color, vec2(t, 0.0));
+        vertices[vid + 1] = TrailVertex(pos - side, color, vec2(t, 1.0));
+
+        uint iid = iidBase + uint(i) * 2u;
+        indices[iid + 0] = vid + 0;
+        indices[iid + 1] = vid + 1;
+    }
+
+    indices[iidBase + vertsPerParticle] = RESTART_INDEX;
+}

@@ -1,0 +1,57 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "odin: prepare bin",
+            "type": "shell",
+            "command": "mkdir",
+            "args": [
+                "-p",
+                "${workspaceFolder}/bin"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "odin: build",
+            "type": "shell",
+            "command": "odin",
+            "args": [
+                "build",
+                "${workspaceFolder}/src",
+                "-out:${workspaceFolder}/bin/psys",
+                "-debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "dependsOn": "odin: prepare bin",
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        },
+        {
+            "label": "odin: release",
+            "type": "shell",
+            "command": "odin",
+            "args": [
+                "build",
+                "${workspaceFolder}/src",
+                "-out:${workspaceFolder}/bin/psys-release",
+                "-o:speed"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "dependsOn": "odin: prepare bin",
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        }
+    ]
+}

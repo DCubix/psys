@@ -1,0 +1,77 @@
+#version 460 core
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+uniform mat4 uInvView;
+uniform int uParticleCount;
+
+struct Vertex {
+    vec3 position;
+    vec4 color;
+    vec2 uv;
+};
+
+struct Particle {
+    vec4 position;
+    vec4 color;
+    float scale;
+};
+
+layout (std430, binding = 0) writeonly buffer VBuff {
+    Vertex vertices[];
+};
+
+layout (std430, binding = 1) writeonly buffer IBuff {
+    uint indices[];
+};
+
+layout (std430, binding = 2) readonly buffer Particles {
+    Particle particles[];
+};
+
+Vertex makeVertex(vec3 centerPos, vec2 offset, float scale, vec2 cosSin, vec4 color, vec2 uv) {
+    Vertex v;
+
+    vec3 camRight = uInvView[0].xyz;
+    vec3 camUp    = uInvView[1].xyz;
+
+    float c = cosSin.x;
+    float s = cosSin.y;
+    vec2 rotatedOffset = vec2(
+        offset.x * c - offset.y * s,
+        offset.x * s + offset.y * c
+    );
+
+    vec3 vertexOffset = (camRight * rotatedOffset.x + camUp * rotatedOffset.y) * scale;
+
+    v.position = centerPos + vertexOffset;
+    v.color = color;
+    v.uv = uv;
+    return v;
+}
+
+void main() {
+    uint pid = gl_GlobalInvocationID.x;
+    if (pid >= uParticleCount) return;
+
+    uint vid = pid * 4;
+    uint iid = pid * 6;
+
+    float theta = particles[pid].position.w;
+    vec2 cosSin = vec2(cos(theta), sin(theta));
+
+    vec3 centerPos = particles[pid].position.xyz;
+    float scale = particles[pid].scale;
+    vec4 color = particles[pid].color;
+    
+    vertices[vid + 0] = makeVertex(centerPos, vec2(-1.0, -1.0), scale, cosSin, color, vec2(0.0, 0.0));
+    vertices[vid + 1] = makeVertex(centerPos, vec2( 1.0, -1.0), scale, cosSin, color, vec2(1.0, 0.0));
+    vertices[vid + 2] = makeVertex(centerPos, vec2( 1.0,  1.0), scale, cosSin, color, vec2(1.0, 1.0));
+    vertices[vid + 3] = makeVertex(centerPos, vec2(-1.0,  1.0), scale, cosSin, color, vec2(0.0, 1.0));
+
+    indices[iid + 0] = vid + 0;
+    indices[iid + 1] = vid + 1;
+    indices[iid + 2] = vid + 2;
+    indices[iid + 4] = vid + 3;
+    indices[iid + 3] = vid + 2;
+    indices[iid + 5] = vid + 0;
+}

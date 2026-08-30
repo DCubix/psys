@@ -1,0 +1,61 @@
+{
+    "capacity": 8192,
+    "transform": {
+        "position": [
+            0.00000000,
+            0.00000000,
+            0.00000000
+        ],
+        "rotation": [
+            0.00000000,
+            0.00000000,
+            0.00000000,
+            1.00000000
+        ]
+    },
+    "emitter": {
+        "shape": "SPHERE",
+        "radius": 4.00000000,
+        "emit_from_surface": true,
+        "particles_per_second": 150,
+        "max_particles": 500,
+        "direction_spread": 0.00000000,
+        "speed": [
+            2.59999990,
+            7.00000000
+        ],
+        "velocity_mode": "RADIAL_IN",
+        "lifetime": [
+            0.49999979,
+            0.69999993
+        ],
+        "rotation": [
+            0.00000000,
+            4.00000000
+        ],
+        "gravity": [
+            0.00000000,
+            0.00000000,
+            0.00000000
+        ],
+        "damping": 0.63000000,
+        "local_space": false,
+        "color_start": [
+            1.00000000,
+            0.75999999,
+            0.00000000,
+            1.00000000
+        ],
+        "color_end": [
+            0.44000000,
+            0.12000000,
+            0.90999997,
+            0.00000000
+        ],
+        "scale_start": 0.69999993,
+        "scale_end": 0.10000000
+    },
+    "renderable": {
+        "texture_path": "/media/diego/Data/Projects/psys/src/assets/star_02.png"
+    }
+}

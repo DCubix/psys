@@ -1,0 +1,132 @@
+{
+    "systems": [
+        {
+            "name": "System#0",
+            "psys_file": {
+                "capacity": 8192,
+                "transform": {
+                    "position": [
+                        0.00000000,
+                        0.00000000,
+                        0.00000000
+                    ],
+                    "rotation": [
+                        0.00000000,
+                        0.00000000,
+                        0.00000000,
+                        1.00000000
+                    ]
+                },
+                "emitter": {
+                    "shape": "CIRCLE",
+                    "radius": 0.19999978,
+                    "emit_from_surface": false,
+                    "particles_per_second": 35,
+                    "max_particles": 100,
+                    "direction_spread": 0.12999998,
+                    "speed": [
+                        1.00000000,
+                        2.69999933
+                    ],
+                    "velocity_mode": "DIRECTIONAL",
+                    "lifetime": [
+                        0.49999997,
+                        1.39999986
+                    ],
+                    "rotation": [
+                        0.00000000,
+                        4.00000000
+                    ],
+                    "gravity": [
+                        0.00000000,
+                        0.00000000,
+                        0.00000000
+                    ],
+                    "damping": 0.16000000,
+                    "local_space": false,
+                    "color_start": [
+                        1.00000000,
+                        0.17999999,
+                        0.00000000,
+                        1.00000000
+                    ],
+                    "color_end": [
+                        1.00000000,
+                        0.81999999,
+                        0.25999999,
+                        0.00000000
+                    ],
+                    "scale_start": 1.00000000,
+                    "scale_end": 0.10000000
+                },
+                "renderable": {
+                    "texture_path": "/media/diego/Data/Projects/psys/src/assets/flame_01.png"
+                }
+            }
+        },
+        {
+            "name": "System#1",
+            "psys_file": {
+                "capacity": 8192,
+                "transform": {
+                    "position": [
+                        0.00000000,
+                        0.00000000,
+                        0.00000000
+                    ],
+                    "rotation": [
+                        0.00000000,
+                        0.00000000,
+                        0.00000000,
+                        0.00000000
+                    ]
+                },
+                "emitter": {
+                    "shape": "SPHERE",
+                    "radius": 0.74999976,
+                    "emit_from_surface": false,
+                    "particles_per_second": 15,
+                    "max_particles": 50,
+                    "direction_spread": 0.22000007,
+                    "speed": [
+                        2.80000019,
+                        6.29999876
+                    ],
+                    "velocity_mode": "DIRECTIONAL",
+                    "lifetime": [
+                        0.50000000,
+                        2.00000000
+                    ],
+                    "rotation": [
+                        0.00000000,
+                        0.00000000
+                    ],
+                    "gravity": [
+                        0.00000000,
+                        0.00000000,
+                        0.00000000
+                    ],
+                    "damping": 0.19999999,
+                    "local_space": false,
+                    "color_start": [
+                        1.00000000,
+                        0.81999999,
+                        0.31999999,
+                        1.00000000
+                    ],
+                    "color_end": [
+                        1.00000000,
+                        0.94000000,
+                        1.00000000,
+                        0.00000000
+                    ],
+                    "scale_start": 0.04000000,
+                    "scale_end": 0.10000000
+                },
+                "renderable": {
+                    "texture_path": "/media/diego/Data/Projects/psys/src/assets/circle_05.png"
+                }
+            }
+        }
+    ]
+}
