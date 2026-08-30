@@ -493,13 +493,9 @@ main :: proc() {
                         mu.number(ui, &e.scale_start, 0.01, "%.2f")
                         mu.number(ui, &e.scale_end, 0.01, "%.2f")
 
-                        mu.layout_row(ui, {col_width, -1})
-                        mu.label(ui, "Start Color")
-                        color_edit(ui, &e.color_start)
-
-                        mu.layout_row(ui, {col_width, -1})
-                        mu.label(ui, "End Color")
-                        color_edit(ui, &e.color_end)
+                        mu.layout_row(ui, {-1})
+                        mu.label(ui, "Color over Lifetime")
+                        color_stops_edit(ui, e.colors[:], &e.colors_count)
 
                         mu.push_id(ui, "particle_texture")
                         mu.layout_row(ui, {col_width, -1})

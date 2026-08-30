@@ -5,12 +5,18 @@ import "core:strings"
 
 import mu "vendor:microui"
 
+import "psys"
+
 // Color editing for microui.
 //
 // `color_edit` draws a swatch that opens a picker popup holding a
 // saturation/value square, a hue bar, an alpha bar over a checkerboard, a hex
 // field, RGBA number boxes and a preset palette. Gradients are drawn as thin
 // rectangles because the microui command list has no gradient command.
+//
+// `color_stops_edit` draws a horizontal track with one knob per color stop of
+// a `psys.LerpValue(psys.Color)` ramp, plus the buttons that add and remove a
+// stop and a `color_edit` swatch for the selected one.
 
 // popup geometry, in pixels
 @(private="file") SV_W         :: 200 // saturation/value square
@@ -70,6 +76,267 @@ color_edit :: proc(ui: ^mu.Context, col: ^[4]f32) -> (res: mu.Result_Set) {
         res += picker_popup(ui, col)
     }
     return
+}
+
+// stop editor geometry, in pixels
+@(private="file") STRIP_H    :: 26 // whole track row
+@(private="file") TRACK_H    :: 8
+@(private="file") KNOB_W     :: 13
+@(private="file") KNOB_H     :: 20
+@(private="file") STOP_BTN_W :: 26 // "+" and "-"
+@(private="file") STOP_IDX_W :: 36 // "2/4"
+@(private="file") STOP_NUM_W :: 54 // stop position
+@(private="file") GRAB_PAD   :: 3  // extra pixels a knob can be grabbed by
+
+@(private="file")
+Stops_State :: struct {
+    id:       mu.Id, // widget the slot belongs to, 0 when the slot is free
+    selected: int,
+    dragging: bool,
+}
+
+// One slot per stop editor on screen. A slot is taken on the first frame the
+// editor is drawn and kept for as long as the program runs.
+@(private="file")
+g_stops_states: [4]Stops_State
+
+// Scratch for the position number box, its id is its address.
+@(private="file")
+g_stop_pos: f32
+
+// Horizontal track carrying one knob per stop of `stops[:count^]`, with the
+// buttons that add and remove a stop and a picker for the selected one. The
+// stops stay sorted by `stop`, which is what `psys.interpolate` needs.
+//
+// `len(stops)` is the number of stops that fit, `count^` how many are in use.
+// Takes two layout rows: the track, then the buttons. `.CHANGE` is returned on every frame a stop moves
+// or its color is edited.
+color_stops_edit :: proc(ui: ^mu.Context, stops: []psys.LerpValue(psys.Color), count: ^int) -> (res: mu.Result_Set) {
+    if len(stops) == 0 {
+        return
+    }
+
+    mu.push_id(ui, uintptr(&stops[0]))
+    defer mu.pop_id(ui)
+
+    n := clamp(count^, 0, len(stops))
+    count^ = n
+
+    id := mu.get_id(ui, "!stops")
+    st := stops_state(id)
+    st.selected = clamp(st.selected, 0, max(n - 1, 0))
+
+    // track and knobs
+    mu.layout_row(ui, {-1}, STRIP_H)
+    strip := mu.layout_next(ui)
+    track := stops_track(strip)
+
+    mu.update_control(ui, id, strip, {})
+    if ui.focus_id == id && ui.mouse_pressed_bits == {.LEFT} {
+        if i, ok := stops_hit(stops[:n], strip, track, ui.mouse_pos.x); ok {
+            st.selected = i
+            st.dragging = true
+        }
+    }
+    if st.dragging {
+        if ui.focus_id == id && .LEFT in ui.mouse_down_bits {
+            t := axis_value(ui.mouse_pos.x, track.x, track.w)
+            if t != stops[st.selected].stop {
+                stops[st.selected].stop = t
+                st.selected = stops_sort_one(stops[:n], st.selected)
+                res += {.CHANGE}
+            }
+        } else {
+            st.dragging = false
+        }
+    }
+
+    hovered := -1
+    if ui.hover_id == id && !st.dragging {
+        if i, ok := stops_hit(stops[:n], strip, track, ui.mouse_pos.x); ok {
+            hovered = i
+        }
+    }
+
+    mu.draw_rect(ui, track, ui.style.colors[.BASE])
+    mu.draw_box(ui, track, ui.style.colors[.BORDER])
+    for i in 0..<n {
+        if i != st.selected {
+            draw_stop_knob(ui, stops_knob_rect(stops[i].stop, strip, track), stops[i].value, false, i == hovered)
+        }
+    }
+    if n > 0 { // the selected knob goes on top of the ones it overlaps
+        i := st.selected
+        draw_stop_knob(ui, stops_knob_rect(stops[i].stop, strip, track), stops[i].value, true, i == hovered)
+    }
+
+    // add, remove, which stop is selected, where it sits
+    mu.layout_row(ui, {STOP_BTN_W, STOP_BTN_W, STOP_IDX_W, STOP_NUM_W, -1})
+
+    if (.SUBMIT in mu.button(ui, "+")) && n < len(stops) {
+        index, value := stops_new(stops[:n], st.selected)
+        stops_insert(stops, n, index, value)
+        n += 1
+        count^ = n
+        st.selected = index
+        res += {.CHANGE}
+    }
+    if (.SUBMIT in mu.button(ui, "-")) && n > 1 {
+        stops_remove(stops[:n], st.selected)
+        n -= 1
+        count^ = n
+        st.selected = clamp(st.selected, 0, n - 1)
+        res += {.CHANGE}
+    }
+
+    if n == 0 {
+        mu.label(ui, "0/0")
+        mu.label(ui, "")
+        mu.label(ui, "no stops")
+        return
+    }
+
+    mu.label(ui, fmt.tprintf("%d/%d", st.selected + 1, n))
+
+    g_stop_pos = stops[st.selected].stop
+    if mu.number(ui, &g_stop_pos, 0.01, "%.2f") & {.CHANGE, .SUBMIT} != {} {
+        stops[st.selected].stop = clamp(g_stop_pos, 0, 1)
+        st.selected = stops_sort_one(stops[:n], st.selected)
+        res += {.CHANGE}
+    }
+
+    res += color_edit(ui, &stops[st.selected].value)
+    return
+}
+
+@(private="file")
+stops_state :: proc(id: mu.Id) -> ^Stops_State {
+    free := -1
+    for &s, i in g_stops_states {
+        if s.id == id {
+            return &s
+        }
+        if s.id == 0 && free < 0 {
+            free = i
+        }
+    }
+    // out of slots: share one, the editors then share a selection
+    slot := free if free >= 0 else int(id) % len(g_stops_states)
+    g_stops_states[slot] = Stops_State{id = id}
+    return &g_stops_states[slot]
+}
+
+// The part of the strip a knob center can sit on, inset so that no knob is cut
+// off at either end.
+@(private="file")
+stops_track :: proc(strip: mu.Rect) -> mu.Rect {
+    inset := i32(KNOB_W / 2 + 1)
+    return mu.Rect{
+        strip.x + inset,
+        strip.y + (strip.h - TRACK_H) / 2,
+        max(strip.w - inset * 2, 1),
+        TRACK_H,
+    }
+}
+
+@(private="file")
+stops_knob_rect :: proc(t: f32, strip, track: mu.Rect) -> mu.Rect {
+    cx := track.x + i32(clamp(t, 0, 1) * f32(max(track.w - 1, 1)))
+    return mu.Rect{cx - KNOB_W / 2, strip.y + (strip.h - KNOB_H) / 2, KNOB_W, KNOB_H}
+}
+
+// Knob nearest to `x` that is close enough to be grabbed.
+@(private="file")
+stops_hit :: proc(stops: []psys.LerpValue(psys.Color), strip, track: mu.Rect, x: i32) -> (index: int, ok: bool) {
+    best := i32(KNOB_W / 2 + GRAB_PAD)
+    for s, i in stops {
+        k := stops_knob_rect(s.stop, strip, track)
+        d := abs(x - (k.x + k.w / 2))
+        if d <= best {
+            best = d
+            index, ok = i, true
+        }
+    }
+    return
+}
+
+// Where a new stop goes: in the gap after the selected one, or in the gap
+// before it when the selected one is last. The color is the one the ramp
+// already has there, so adding a stop does not change what it looks like.
+@(private="file")
+stops_new :: proc(stops: []psys.LerpValue(psys.Color), selected: int) -> (index: int, value: psys.LerpValue(psys.Color)) {
+    n := len(stops)
+    lo, hi: f32
+
+    switch {
+    case n == 0:
+        return 0, {stop = 0, value = {1, 1, 1, 1}}
+    case selected < n - 1:
+        lo, hi = stops[selected].stop, stops[selected + 1].stop
+        index = selected + 1
+    case n > 1:
+        lo, hi = stops[selected - 1].stop, stops[selected].stop
+        index = selected
+    case stops[0].stop < 1: // one stop only, take the room next to it
+        lo, hi = stops[0].stop, 1
+        index = 1
+    case:
+        lo, hi = 0, stops[0].stop
+        index = 0
+    }
+
+    value.stop = (lo + hi) * 0.5
+    value.value = psys.interpolate(stops, value.stop)
+    return
+}
+
+@(private="file")
+stops_insert :: proc(stops: []psys.LerpValue(psys.Color), n, index: int, value: psys.LerpValue(psys.Color)) {
+    for i := n; i > index; i -= 1 {
+        stops[i] = stops[i - 1]
+    }
+    stops[index] = value
+}
+
+@(private="file")
+stops_remove :: proc(stops: []psys.LerpValue(psys.Color), index: int) {
+    for i := index; i < len(stops) - 1; i += 1 {
+        stops[i] = stops[i + 1]
+    }
+}
+
+// Moves the stop at `index` to where its position puts it and returns the
+// index it ended up at. Everything else is already in order, so walking it to
+// one side is enough.
+@(private="file")
+stops_sort_one :: proc(stops: []psys.LerpValue(psys.Color), index: int) -> int {
+    i := index
+    for i > 0 && stops[i].stop < stops[i - 1].stop {
+        stops[i], stops[i - 1] = stops[i - 1], stops[i]
+        i -= 1
+    }
+    for i < len(stops) - 1 && stops[i].stop > stops[i + 1].stop {
+        stops[i], stops[i + 1] = stops[i + 1], stops[i]
+        i += 1
+    }
+    return i
+}
+
+@(private="file")
+draw_stop_knob :: proc(ui: ^mu.Context, r: mu.Rect, col: psys.Color, selected, hovered: bool) {
+    if selected {
+        mu.draw_box(ui, mu.Rect{r.x - 2, r.y - 2, r.w + 4, r.h + 4}, mu.Color{20, 20, 20, 255})
+        mu.draw_box(ui, mu.Rect{r.x - 1, r.y - 1, r.w + 2, r.h + 2}, mu.Color{255, 255, 255, 255})
+    }
+    draw_color_fill(ui, r, col)
+
+    border := ui.style.colors[.BORDER]
+    if selected {
+        border = mu.Color{255, 255, 255, 255}
+    } else if hovered {
+        border = mu.Color{220, 220, 220, 255}
+    }
+    mu.draw_box(ui, r, border)
 }
 
 @(private="file")

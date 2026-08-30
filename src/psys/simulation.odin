@@ -20,6 +20,7 @@ g_vertices_per_point :: 4
 g_indices_per_quad :: 6 // triangles
 g_friction_factor :: 0.99
 g_max_trail_points :: 16
+g_max_particle_colors :: 8
 
 @(private)
 g_particle_mesh_gen_shader: Maybe(Shader)
@@ -49,7 +50,8 @@ Particle :: struct {
     prev_position: vec3,
     acceleration: vec3,
 
-    colors: [2]vec4,
+    color: Color,
+
     scales: [2]f32,
     rotation: f32,
 
@@ -83,8 +85,7 @@ particle_init :: proc(
     p.position = position
     p.prev_position = position - velocity
     p.acceleration = acceleration
-    p.colors[0] = color
-    p.colors[1] = color
+    p.color = color
     p.scales[0] = scale
     p.scales[1] = scale
     p.rotation = rotation
@@ -101,7 +102,7 @@ particle_get_renderable :: proc(p: Particle) -> RenderableParticle {
     t := (p.age / (p.lifetime + 1e-5))
     return RenderableParticle {
         position = vec4{p.position.x, p.position.y, p.position.z, p.rotation},
-        color = math.lerp(p.colors[0], p.colors[1], t),
+        color = p.color,
         scale = math.lerp(p.scales[0], p.scales[1], t),
     }
 }
@@ -142,8 +143,9 @@ Emitter :: struct {
     local_space: bool,
 
     // visual over lifetime
-    color_start: Color,
-    color_end: Color,
+    colors: [g_max_particle_colors]LerpValue(Color),
+    colors_count: int,
+    
     scale_start: f32,
     scale_end: f32,
 
@@ -387,7 +389,7 @@ system_emit_one :: proc(sys: ^ParticleSystem, dt: f32) {
     p.acceleration = e.gravity
     p.rotation = random_range(e.rotation)
     p.scales = {e.scale_start, e.scale_end}
-    p.colors = {e.color_start, e.color_end}
+    p.color = e.colors[0].value if e.colors_count > 0 else {1, 1, 1, 1}
     p.age = 0
     p.lifetime = random_range(e.lifetime)
 
@@ -416,6 +418,9 @@ system_update :: proc(sys: ^ParticleSystem, dt: f32) {
 
         p.prev_position = p.position
         p.position = new_position
+
+        t := p.age / (p.lifetime + 1e-5)
+        p.color = interpolate(e.colors[:e.colors_count], t)
 
         update_particle_trail(p, e)
 
@@ -526,7 +531,7 @@ system_render_upload_gpu_trails :: proc(sys: ^ParticleSystem, stride: int) {
         metas[i] = {
             head = i32(p.trail_head),
             count = i32(min(p.trail_count, e.trail.length, stride)),
-            alpha = math.lerp(p.colors[0].a, p.colors[1].a, life_t),
+            alpha = math.lerp(p.color.a, p.color.a, life_t),
         }
     }
 
@@ -724,10 +729,14 @@ emitter_default :: proc() -> Emitter {
         damping      = 0.0,
         local_space  = false,
 
-        color_start = Color{1, 1, 1, 1},
-        color_end   = Color{1, 1, 1, 0}, // fade to transparent, a common sane default
+        colors = { // fade to transparent, a common sane default
+            {stop = 0.0, value = {1, 1, 1, 1}},
+            {stop = 1.0, value = {1, 1, 1, 0}},
+            {}, {}, {}, {}, {}, {},
+        },
+        colors_count = 2,
         scale_start = 1.0,
-        scale_end   = 1.0,
+        scale_end = 1.0,
 
         trail = {
             enabled = false,
