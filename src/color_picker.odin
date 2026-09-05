@@ -174,7 +174,7 @@ color_stops_edit :: proc(ui: ^mu.Context, stops: []psys.LerpValue(psys.Color), c
     mu.layout_row(ui, {STOP_BTN_W, STOP_BTN_W, STOP_IDX_W, STOP_NUM_W, -1})
 
     if (.SUBMIT in mu.button(ui, "+")) && n < len(stops) {
-        index, value := stops_new(stops[:n], st.selected)
+        index, value := stops_new(stops[:n], st.selected, psys.Color{1, 1, 1, 1})
         stops_insert(stops, n, index, value)
         n += 1
         count^ = n
@@ -206,6 +206,120 @@ color_stops_edit :: proc(ui: ^mu.Context, stops: []psys.LerpValue(psys.Color), c
     }
 
     res += color_edit(ui, &stops[st.selected].value)
+    return
+}
+
+f32_stops_edit :: proc(
+    ui: ^mu.Context,
+    stops: []psys.LerpValue(f32),
+    count: ^int,
+    min_value: f32 = -1.0,
+    max_value: f32 = -1.0,
+) -> (res: mu.Result_Set) {
+    if len(stops) == 0 {
+        return
+    }
+
+    min_max_valid := min_value != max_value && min_value < max_value
+
+    mu.push_id(ui, uintptr(&stops[0]))
+    defer mu.pop_id(ui)
+
+    n := clamp(count^, 0, len(stops))
+    count^ = n
+
+    id := mu.get_id(ui, "!stops")
+    st := stops_state(id)
+    st.selected = clamp(st.selected, 0, max(n - 1, 0))
+
+    // track and knobs
+    mu.layout_row(ui, {-1}, STRIP_H)
+    strip := mu.layout_next(ui)
+    track := stops_track(strip)
+
+    mu.update_control(ui, id, strip, {})
+    if ui.focus_id == id && ui.mouse_pressed_bits == {.LEFT} {
+        if i, ok := stops_hit(stops[:n], strip, track, ui.mouse_pos.x); ok {
+            st.selected = i
+            st.dragging = true
+        }
+    }
+    if st.dragging {
+        if ui.focus_id == id && .LEFT in ui.mouse_down_bits {
+            t := axis_value(ui.mouse_pos.x, track.x, track.w)
+            if t != stops[st.selected].stop {
+                stops[st.selected].stop = t
+                st.selected = stops_sort_one(stops[:n], st.selected)
+                res += {.CHANGE}
+            }
+        } else {
+            st.dragging = false
+        }
+    }
+
+    hovered := -1
+    if ui.hover_id == id && !st.dragging {
+        if i, ok := stops_hit(stops[:n], strip, track, ui.mouse_pos.x); ok {
+            hovered = i
+        }
+    }
+
+    mu.draw_rect(ui, track, ui.style.colors[.BASE])
+    mu.draw_box(ui, track, ui.style.colors[.BORDER])
+    for i in 0..<n {
+        if i != st.selected {
+            val := stops[i].value
+            fac := 1.0 if !min_max_valid else (val - min_value) / (max_value - min_value)
+            draw_f32_knob(ui, stops_knob_rect(stops[i].stop, strip, track), fac, false, i == hovered)
+        }
+    }
+    if n > 0 { // the selected knob goes on top of the ones it overlaps
+        i := st.selected
+        val := stops[i].value
+        fac := 1.0 if !min_max_valid else (val - min_value) / (max_value - min_value)
+        draw_f32_knob(ui, stops_knob_rect(stops[i].stop, strip, track), fac, true, i == hovered)
+    }
+
+    // add, remove, which stop is selected, where it sits
+    mu.layout_row(ui, {STOP_BTN_W, STOP_BTN_W, STOP_IDX_W, STOP_NUM_W, -1})
+
+    if (.SUBMIT in mu.button(ui, "+")) && n < len(stops) {
+        index, value := stops_new(stops[:n], st.selected, 0.0)
+        stops_insert(stops, n, index, value)
+        n += 1
+        count^ = n
+        st.selected = index
+        res += {.CHANGE}
+    }
+    if (.SUBMIT in mu.button(ui, "-")) && n > 1 {
+        stops_remove(stops[:n], st.selected)
+        n -= 1
+        count^ = n
+        st.selected = clamp(st.selected, 0, n - 1)
+        res += {.CHANGE}
+    }
+
+    if n == 0 {
+        mu.label(ui, "0/0")
+        mu.label(ui, "")
+        mu.label(ui, "no stops")
+        return
+    }
+
+    mu.label(ui, fmt.tprintf("%d/%d", st.selected + 1, n))
+
+    g_stop_pos = stops[st.selected].stop
+    if mu.number(ui, &g_stop_pos, 0.01, "%.2f") & {.CHANGE, .SUBMIT} != {} {
+        stops[st.selected].stop = clamp(g_stop_pos, 0, 1)
+        st.selected = stops_sort_one(stops[:n], st.selected)
+        res += {.CHANGE}
+    }
+
+    if min_max_valid {
+        res += mu.slider(ui, &stops[st.selected].value, min_value, max_value, 0.01)
+    } else {
+        res += mu.number(ui, &stops[st.selected].value, 0.01)
+    }
     return
 }
 
@@ -247,7 +361,7 @@ stops_knob_rect :: proc(t: f32, strip, track: mu.Rect) -> mu.Rect {
 
 // Knob nearest to `x` that is close enough to be grabbed.
 @(private="file")
-stops_hit :: proc(stops: []psys.LerpValue(psys.Color), strip, track: mu.Rect, x: i32) -> (index: int, ok: bool) {
+stops_hit :: proc(stops: []psys.LerpValue($T), strip, track: mu.Rect, x: i32) -> (index: int, ok: bool) {
     best := i32(KNOB_W / 2 + GRAB_PAD)
     for s, i in stops {
         k := stops_knob_rect(s.stop, strip, track)
@@ -264,13 +378,13 @@ stops_hit :: proc(stops: []psys.LerpValue(psys.Color), strip, track: mu.Rect, x:
 // before it when the selected one is last. The color is the one the ramp
 // already has there, so adding a stop does not change what it looks like.
 @(private="file")
-stops_new :: proc(stops: []psys.LerpValue(psys.Color), selected: int) -> (index: int, value: psys.LerpValue(psys.Color)) {
+stops_new :: proc(stops: []psys.LerpValue($T), selected: int, default_value: T) -> (index: int, value: psys.LerpValue(T)) {
     n := len(stops)
     lo, hi: f32
 
     switch {
     case n == 0:
-        return 0, {stop = 0, value = {1, 1, 1, 1}}
+        return 0, {stop = 0, value = default_value}
     case selected < n - 1:
         lo, hi = stops[selected].stop, stops[selected + 1].stop
         index = selected + 1
@@ -291,7 +405,7 @@ stops_new :: proc(stops: []psys.LerpValue(psys.Color), selected: int) -> (index:
 }
 
 @(private="file")
-stops_insert :: proc(stops: []psys.LerpValue(psys.Color), n, index: int, value: psys.LerpValue(psys.Color)) {
+stops_insert :: proc(stops: []psys.LerpValue($T), n, index: int, value: psys.LerpValue(T)) {
     for i := n; i > index; i -= 1 {
         stops[i] = stops[i - 1]
     }
@@ -299,7 +413,7 @@ stops_insert :: proc(stops: []psys.LerpValue(psys.Color), n, index: int, value: 
 }
 
 @(private="file")
-stops_remove :: proc(stops: []psys.LerpValue(psys.Color), index: int) {
+stops_remove :: proc(stops: []psys.LerpValue($T), index: int) {
     for i := index; i < len(stops) - 1; i += 1 {
         stops[i] = stops[i + 1]
     }
@@ -309,7 +423,7 @@ stops_remove :: proc(stops: []psys.LerpValue(psys.Color), index: int) {
 // index it ended up at. Everything else is already in order, so walking it to
 // one side is enough.
 @(private="file")
-stops_sort_one :: proc(stops: []psys.LerpValue(psys.Color), index: int) -> int {
+stops_sort_one :: proc(stops: []psys.LerpValue($T), index: int) -> int {
     i := index
     for i > 0 && stops[i].stop < stops[i - 1].stop {
         stops[i], stops[i - 1] = stops[i - 1], stops[i]
@@ -329,6 +443,23 @@ draw_stop_knob :: proc(ui: ^mu.Context, r: mu.Rect, col: psys.Color, selected, h
         mu.draw_box(ui, mu.Rect{r.x - 1, r.y - 1, r.w + 2, r.h + 2}, mu.Color{255, 255, 255, 255})
     }
     draw_color_fill(ui, r, col)
+
+    border := ui.style.colors[.BORDER]
+    if selected {
+        border = mu.Color{255, 255, 255, 255}
+    } else if hovered {
+        border = mu.Color{220, 220, 220, 255}
+    }
+    mu.draw_box(ui, r, border)
+}
+
+@(private="file")
+draw_f32_knob :: proc(ui: ^mu.Context, r: mu.Rect, fac: f32, selected, hovered: bool) {
+    if selected {
+        mu.draw_box(ui, mu.Rect{r.x - 2, r.y - 2, r.w + 4, r.h + 4}, mu.Color{20, 20, 20, 255})
+        mu.draw_box(ui, mu.Rect{r.x - 1, r.y - 1, r.w + 2, r.h + 2}, mu.Color{255, 255, 255, 255})
+    }
+    draw_f32_fill(ui, r, fac)
 
     border := ui.style.colors[.BORDER]
     if selected {
@@ -559,6 +690,17 @@ draw_color_fill :: proc(ui: ^mu.Context, r: mu.Rect, col: [4]f32) {
         draw_checkerboard(ui, r)
     }
     mu.draw_rect(ui, r, mu_color(col))
+}
+
+@(private="file")
+draw_f32_fill :: proc(ui: ^mu.Context, r: mu.Rect, fac: f32) {
+    if fac < 1 {
+        draw_checkerboard(ui, r)
+    }
+    nr := r
+    nr.h = i32(fac * f32(r.h))
+    nr.y = r.y + (r.h - i32(fac * f32(r.h)))
+    mu.draw_rect(ui, nr, mu_color({0.0, 0.5, 1.0, 1.0}))
 }
 
 @(private="file")

@@ -20,7 +20,8 @@ g_vertices_per_point :: 4
 g_indices_per_quad :: 6 // triangles
 g_friction_factor :: 0.99
 g_max_trail_points :: 16
-g_max_particle_colors :: 8
+g_max_over_time_values :: 8
+g_max_force_fields :: 16
 
 @(private)
 g_particle_mesh_gen_shader: Maybe(Shader)
@@ -52,7 +53,8 @@ Particle :: struct {
 
     color: Color,
 
-    scales: [2]f32,
+    scale: f32,
+    scale_over_time: f32,
     rotation: f32,
 
     age: f32,
@@ -86,8 +88,7 @@ particle_init :: proc(
     p.prev_position = position - velocity
     p.acceleration = acceleration
     p.color = color
-    p.scales[0] = scale
-    p.scales[1] = scale
+    p.scale = scale
     p.rotation = rotation
     p.lifetime = start_life
     p.trail_count = 0
@@ -103,7 +104,7 @@ particle_get_renderable :: proc(p: Particle) -> RenderableParticle {
     return RenderableParticle {
         position = vec4{p.position.x, p.position.y, p.position.z, p.rotation},
         color = p.color,
-        scale = math.lerp(p.scales[0], p.scales[1], t),
+        scale = p.scale * p.scale_over_time,
     }
 }
 
@@ -114,6 +115,18 @@ EmitterShape :: enum {
 }
 
 VelocityMode :: enum { DIRECTIONAL, RADIAL_OUT, RADIAL_IN }
+
+FieldShape :: enum { SPHERE, TUBE }
+
+ForceField :: struct {
+    shape: FieldShape,
+    repel: bool,
+
+    position: vec3,
+    direction: vec3,
+    strength: f32,
+    radius: f32,
+}
 
 Emitter :: struct {
     // spatial
@@ -135,6 +148,7 @@ Emitter :: struct {
     // per-particle spawn ranges
     lifetime: [2]f32,
     rotation: [2]f32,
+    scale: [2]f32,
     // TODO: Add angular velocity (maybe) later
 
     // simulation
@@ -143,11 +157,11 @@ Emitter :: struct {
     local_space: bool,
 
     // visual over lifetime
-    colors: [g_max_particle_colors]LerpValue(Color),
+    colors: [g_max_over_time_values]LerpValue(Color),
     colors_count: int,
-    
-    scale_start: f32,
-    scale_end: f32,
+
+    scales: [g_max_over_time_values]LerpValue(f32),
+    scales_count: int,
 
     // trail
     trail: struct {
@@ -161,6 +175,10 @@ Emitter :: struct {
         texture_cap_fraction: f32,
         texture_tiles: f32,
     },
+
+    // force fields
+    force_fields: [g_max_force_fields]ForceField,
+    force_fields_count: int,
 }
 
 ParticleSystem :: struct {
@@ -388,7 +406,8 @@ system_emit_one :: proc(sys: ^ParticleSystem, dt: f32) {
     p.prev_position = spawn_pos - init_vel * dt
     p.acceleration = e.gravity
     p.rotation = random_range(e.rotation)
-    p.scales = {e.scale_start, e.scale_end}
+    p.scale = random_range(e.scale)
+    p.scale_over_time = e.scales[0].value if e.scales_count > 0 else 1.0
     p.color = e.colors[0].value if e.colors_count > 0 else {1, 1, 1, 1}
     p.age = 0
     p.lifetime = random_range(e.lifetime)
@@ -413,6 +432,9 @@ system_update :: proc(sys: ^ParticleSystem, dt: f32) {
 
         p.acceleration = e.gravity
 
+        // apply force fields
+        apply_force_fields(p, e, dt)
+
         velocity := (p.position - p.prev_position) * (1.0 - e.damping * dt)
         new_position := p.position + velocity + p.acceleration * dt * dt
 
@@ -421,10 +443,30 @@ system_update :: proc(sys: ^ParticleSystem, dt: f32) {
 
         t := p.age / (p.lifetime + 1e-5)
         p.color = interpolate(e.colors[:e.colors_count], t)
+        p.scale_over_time = interpolate(e.scales[:e.scales_count], t)
 
         update_particle_trail(p, e)
 
         i += 1
+    }
+}
+
+@(private="file")
+apply_force_fields :: proc(p: ^Particle, e: ^Emitter, dt: f32) {
+    if e.force_fields_count <= 0 do return
+
+    for i in 0..<e.force_fields_count {
+        ff := &e.force_fields[i]
+
+        diff := ff.position - p.position
+        dist := la.length(diff)
+        if dist > ff.radius do continue
+
+        vec := diff / dist
+
+        // TODO: Vortex and wind need to apply the force in a tube shape. So base = radius * 2 and heght = distance, oriented at direction.
+        // TODO: Implement TUBE shape
+        p.acceleration += vec * ff.strength * (-1.0 if ff.repel else 1.0) * dt
     }
 }
 
@@ -724,6 +766,7 @@ emitter_default :: proc() -> Emitter {
 
         lifetime = {0.1, 1.0},
         rotation = {0, 0},
+        scale = {1, 0},
 
         gravity      = {0, 0, 0},
         damping      = 0.0,
@@ -735,8 +778,6 @@ emitter_default :: proc() -> Emitter {
             {}, {}, {}, {}, {}, {},
         },
         colors_count = 2,
-        scale_start = 1.0,
-        scale_end = 1.0,
 
         trail = {
             enabled = false,

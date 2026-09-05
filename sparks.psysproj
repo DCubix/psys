@@ -18,43 +18,43 @@
                     ]
                 },
                 "emitter": {
-                    "shape": "POINT",
-                    "radius": 1.00000000,
+                    "shape": "CIRCLE",
+                    "radius": 1.71999931,
                     "emit_from_surface": false,
-                    "particles_per_second": 20,
+                    "particles_per_second": 58,
                     "max_particles": 100,
-                    "direction_spread": 0.10000000,
+                    "direction_spread": 0.23000000,
                     "speed": [
-                        12.00000000,
-                        16.00000000
+                        2.00000000,
+                        4.00000000
                     ],
                     "velocity_mode": "DIRECTIONAL",
                     "lifetime": [
-                        2.00000000,
-                        3.00000000
+                        0.10000000,
+                        1.00000000
                     ],
                     "rotation": [
                         0.00000000,
                         0.00000000
                     ],
                     "scale": [
-                        0.50000000,
-                        0.60000002
+                        1.00000000,
+                        2.00000000
                     ],
                     "gravity": [
                         0.00000000,
-                        -9.80000019,
+                        0.00000000,
                         0.00000000
                     ],
-                    "damping": 0.23999999,
+                    "damping": 0.00000000,
                     "local_space": false,
                     "colors": [
                         {
                             "stop": 0.00000000,
                             "value": [
                                 1.00000000,
-                                1.00000000,
-                                1.00000000,
+                                0.88250607,
+                                0.34673369,
                                 1.00000000
                             ]
                         },
@@ -62,8 +62,8 @@
                             "stop": 1.00000000,
                             "value": [
                                 1.00000000,
-                                1.00000000,
-                                1.00000000,
+                                0.88250607,
+                                0.34673369,
                                 0.00000000
                             ]
                         },
@@ -129,23 +129,23 @@
                             "value": 1.00000000
                         },
                         {
+                            "stop": 0.18631178,
+                            "value": 0.38000000
+                        },
+                        {
+                            "stop": 0.36501902,
+                            "value": 0.64999998
+                        },
+                        {
+                            "stop": 0.57034218,
+                            "value": 0.38000000
+                        },
+                        {
+                            "stop": 0.78326994,
+                            "value": 0.56999999
+                        },
+                        {
                             "stop": 1.00000000,
-                            "value": 0.38999999
-                        },
-                        {
-                            "stop": 0.00000000,
-                            "value": 0.00000000
-                        },
-                        {
-                            "stop": 0.00000000,
-                            "value": 0.00000000
-                        },
-                        {
-                            "stop": 0.00000000,
-                            "value": 0.00000000
-                        },
-                        {
-                            "stop": 0.00000000,
                             "value": 0.00000000
                         },
                         {
@@ -157,16 +157,16 @@
                             "value": 0.00000000
                         }
                     ],
-                    "scales_count": 2,
+                    "scales_count": 6,
                     "trail": {
-                        "enabled": true,
+                        "enabled": false,
                         "length": 16,
-                        "min_point_distance": 0.10000000,
-                        "width_start": 2.00000000,
-                        "width_end": 2.00000000,
+                        "min_point_distance": 0.20000000,
+                        "width_start": 0.10000000,
+                        "width_end": 0.10000000,
                         "color_start": [
-                            0.46733665,
-                            0.50565767,
+                            1.00000000,
+                            1.00000000,
                             1.00000000,
                             1.00000000
                         ],
@@ -176,13 +176,13 @@
                             1.00000000,
                             0.00000000
                         ],
-                        "texture_cap_fraction": 0.14999999,
-                        "texture_tiles": 2.00000000
+                        "texture_cap_fraction": 0.25000000,
+                        "texture_tiles": 4.00000000
                     }
                 },
                 "renderable": {
-                    "texture_path": "/media/diego/Data/Projects/psys/src/assets/circle_05.png",
-                    "trail_texture_path": "/media/diego/Data/Projects/psys/src/assets/spark_07.png"
+                    "texture_path": "/media/diego/Data/Projects/psys/src/assets/star_08.png",
+                    "trail_texture_path": ""
                 }
             }
         }

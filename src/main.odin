@@ -2,6 +2,7 @@
 
 package src
 
+import "core:c"
 import "core:encoding/json"
 import "core:os"
 import "core:strings"
@@ -31,6 +32,11 @@ velocity_mode_options := map[psys.VelocityMode]string{
     .DIRECTIONAL = "Directional",
     .RADIAL_IN = "Radial In",
     .RADIAL_OUT = "Radial Out",
+}
+
+force_field_shape_options := map[psys.FieldShape]string{
+    .SPHERE = "Sphere",
+    .TUBE = "Tube",
 }
 
 // what the texture picker offers, stb_image's formats first
@@ -74,12 +80,14 @@ App :: struct {
     systems: []PSYS,
     systems_count: int,
     selected: string,
+    selected_force_field: int,
 }
 
 app_create :: proc() -> App {
     return App {
         systems = make([]PSYS, 64),
-        selected = ""
+        selected = "",
+        selected_force_field = -1,
     }
 }
 
@@ -363,11 +371,24 @@ main :: proc() {
                     }
                 }
 
-                for i in 0..<ps.sys.active_count {
-                    p := ps.sys.particles[i]
+                if app.selected_force_field != -1 {
+                    ff := &e.force_fields[app.selected_force_field]
+
                     xf: psys.Transform
-                    psys.transform_init(&xf, p.position)
-                    psys.debug_draw_axes(&dd, xf, 0.2)
+                    psys.transform_init(&xf, ff.position)
+
+                    psys.debug_draw_axes(&dd, xf, 1.0)
+
+                    #partial switch ff.shape {
+                        case .SPHERE:
+                            psys.debug_draw_sphere(
+                                &dd,
+                                ff.position,
+                                ff.radius,
+                                {1,0.5,0.0,0.8}
+                            )
+                        case:
+                    }
                 }
             }
 
@@ -409,6 +430,7 @@ main :: proc() {
                     ps := &app.systems[i]
                     if .SUBMIT in file_dialog_row(ui, ps.name, app.selected == ps.name) {
                         app.selected = ps.name
+                        app.selected_force_field = -1
                     }
                 }
 
@@ -433,7 +455,7 @@ main :: proc() {
                 if mu.begin_window(ui, "Selected Settings", {20, 20, 300, 680}, opt) {
                     defer mu.end_window(ui)
 
-                    col_width :: 100
+                    col_width :: 120
                     if mu.header(ui, "Spatial", {.EXPANDED}) != {} {
                         sw := slice_width(ui, 3, col_width, 1)
                         mu.layout_row(ui, {col_width, sw, sw, sw})
@@ -442,16 +464,24 @@ main :: proc() {
                         mu.number(ui, &e.transform.position.y, 0.01)
                         mu.number(ui, &e.transform.position.z, 0.01)
 
+                        // TODO: Investigate rotation glitch
                         rx, ry, rz := la.euler_angles_from_quaternion(e.transform.rotation, .XYZ)
+                        rx = math.to_degrees(rx)
+                        ry = math.to_degrees(ry)
+                        rz = math.to_degrees(rz)
+
                         mu.layout_row(ui, {col_width, sw, sw, sw})
                         mu.label(ui, "Rotation (euler)")
-                        crx := mu.number(ui, &rx, 0.01)
-                        cry := mu.number(ui, &ry, 0.01)
-                        crz := mu.number(ui, &rz, 0.01)
+                        crx := mu.slider(ui, &rx, 0.0, 360.0, 0.01)
+                        cry := mu.slider(ui, &ry, 0.0, 360.0, 0.01)
+                        crz := mu.slider(ui, &rz, 0.0, 360.0, 0.01)
 
                         if crx & {.SUBMIT, .CHANGE} != {} ||
-                        cry & {.SUBMIT, .CHANGE} != {} ||
-                        crz & {.SUBMIT, .CHANGE} != {} {
+                            cry & {.SUBMIT, .CHANGE} != {} ||
+                            crz & {.SUBMIT, .CHANGE} != {} {
+                            rx = math.to_radians(rx)
+                            ry = math.to_radians(ry)
+                            rz = math.to_radians(rz)
                             e.transform.rotation = la.quaternion_from_euler_angles(rx, ry, rz, .XYZ)
                         }
 
@@ -481,17 +511,33 @@ main :: proc() {
                         }
 
                         mu.layout_row(ui, {col_width, i32(sw), i32(sw)})
-                        mu.label(ui, "Rotation (lo/hi rad.)")
-                        mu.number(ui, &e.rotation[0], 0.1, "%.1f")
-                        mu.number(ui, &e.rotation[1], 0.1, "%.1f")
+                        mu.label(ui, "Rotation (lo/hi deg.)")
+
+                        r1 := math.to_degrees(e.rotation[0])
+                        if mu.slider(ui, &r1, 0.0, 360.0, 0.1, "%.1f") & {.SUBMIT, .CHANGE} == {} {
+                            e.rotation[0] = math.to_radians(r1)
+                        }
+
+                        r2 := math.to_degrees(e.rotation[1])
+                        if mu.slider(ui, &r2, 0.0, 360.0, 0.1, "%.1f") & {.SUBMIT, .CHANGE} == {} {
+                            e.rotation[1] = math.to_radians(r2)
+                        }
+
                         if e.rotation[0] > e.rotation[1] {
                             e.rotation[0], e.rotation[1] = e.rotation[1], e.rotation[0]
                         }
 
                         mu.layout_row(ui, {col_width, i32(sw), i32(sw)})
                         mu.label(ui, "Scale (lo/hi)")
-                        mu.number(ui, &e.scale_start, 0.01, "%.2f")
-                        mu.number(ui, &e.scale_end, 0.01, "%.2f")
+                        mu.number(ui, &e.scale[0], 0.01, "%.2f")
+                        mu.number(ui, &e.scale[1], 0.01, "%.2f")
+                        if e.scale[0] > e.scale[1] {
+                            e.scale[0], e.scale[1] = e.scale[1], e.scale[0]
+                        }
+
+                        mu.layout_row(ui, {-1})
+                        mu.label(ui, "Scale over Lifetime")
+                        f32_stops_edit(ui, e.scales[:], &e.scales_count, 0.0, 1.0)
 
                         mu.layout_row(ui, {-1})
                         mu.label(ui, "Color over Lifetime")
@@ -595,6 +641,79 @@ main :: proc() {
                                 mu.number(ui, &e.trail.texture_tiles, 0.1)
                             }
                             mu.pop_id(ui)
+                        }
+                    }
+
+                    if mu.header(ui, "Force Fields", {.EXPANDED}) != {} {
+                        sw := slice_width(ui, 2, 0, 0)
+                        mu.layout_row(ui, {sw, sw})
+                        if .SUBMIT in mu.button(ui, "Add") && e.force_fields_count < psys.g_max_force_fields {
+                            e.force_fields_count += 1
+                            e.force_fields[e.force_fields_count-1] = psys.ForceField {
+                                radius = 1.0,
+                                shape = .SPHERE,
+                                strength = 100.0,
+                            }
+                        }
+                        if .SUBMIT in mu.button(ui, "Delete") && app.selected_force_field != -1 && e.force_fields_count > 0 {
+                            e.force_fields[app.selected_force_field] = psys.ForceField{}
+                            e.force_fields_count -= 1
+                            app.selected_force_field = -1
+                        }
+
+                        row_h := ui.style.size.y + ui.style.padding * 2
+                        mu.layout_row(ui, {-1}, 120)
+                        mu.begin_panel(ui, "force_fields")
+                        mu.layout_row(ui, {-1}, row_h)
+
+                        for i in 0..<e.force_fields_count {
+                            ff := &e.force_fields[i]
+                            ff_name := fmt.tprintf("FF#%d", i)
+                            if .SUBMIT in file_dialog_row(ui, ff_name, app.selected_force_field == i) {
+                                app.selected_force_field = i
+                            }
+                        }
+
+                        if app.systems_count == 0 {
+                            mu.label(ui, "No force fields added.")
+                        }
+                        mu.end_panel(ui)
+
+                        if app.selected_force_field != -1 {
+                            ff := &e.force_fields[app.selected_force_field]
+
+                            sw := slice_width(ui, 3, col_width, 1)
+
+                            mu.layout_row(ui, {col_width, -1})
+                            mu.label(ui, "Shape")
+                            menu_button(ui, "ff_shape", &ff.shape, force_field_shape_options)
+
+                            mu.layout_row(ui, {col_width, -1})
+                            mu.label(ui, "")
+                            mu.checkbox(ui, "Repel", &ff.repel)
+
+                            mu.layout_row(ui, {col_width, sw, sw, sw})
+                            mu.label(ui, "Position")
+                            mu.number(ui, &ff.position.x, 0.01)
+                            mu.number(ui, &ff.position.y, 0.01)
+                            mu.number(ui, &ff.position.z, 0.01)
+
+                            if ff.shape == .TUBE {
+                                // TODO: Use a rotation approach, convert it to direction
+                                mu.layout_row(ui, {col_width, sw, sw, sw})
+                                mu.label(ui, "Direction")
+                                mu.number(ui, &ff.direction.x, 0.01)
+                                mu.number(ui, &ff.direction.y, 0.01)
+                                mu.number(ui, &ff.direction.z, 0.01)
+                            }
+
+                            mu.layout_row(ui, {col_width, -1})
+                            mu.label(ui, "Radius")
+                            mu.number(ui, &ff.radius, 0.1)
+
+                            mu.layout_row(ui, {col_width, -1})
+                            mu.label(ui, "Strangth")
+                            mu.number(ui, &ff.strength, 0.1)
                         }
                     }
 
